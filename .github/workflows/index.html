@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bek Calc — ведомость работ</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="boqcalc.css">
+<style>
+:root{
+  --bg:#f7f8fa; --card:#ffffff; --text:#111827; --muted:#6b7280; --line:#e5e7eb;
+  --accent:#2563eb; --accent-weak:#eaf1ff; --danger:#ef4444; --success:#10b981;
+}
+html,body{background:var(--bg); color:var(--text); font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial;}
+*{box-sizing:border-box;}
+header{position:sticky; top:0; z-index:20; background:#fff; border-bottom:1px solid var(--line); padding:12px 16px;}
+.brand{display:flex; align-items:center; gap:12px;}
+.brand img{ width:42px; height:42px; border-radius:10px; border:1px solid var(--line); background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.06);}
+.brand .name{ font-weight:800; font-size:18px; letter-spacing:.2px;}
+@media (min-width:768px){
+  .brand img{ width:48px; height:48px;}
+  .brand .name{ font-size:20px;}
+}
+main{max-width:1200px; margin:16px auto; padding:0 14px;}
+.card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; box-shadow:0 4px 14px rgba(0,0,0,.04);}
+.toolbar{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+.spacer{flex:1 1 auto;}
+.section-title{margin:0; font-size:16px;}
+.grid{display:grid; grid-template-columns:1fr; gap:10px;}
+.wrap{display:grid; grid-template-columns:1fr; gap:10px;}
+@media (min-width:720px){
+  .grid{ grid-template-columns:repeat(2,minmax(250px,1fr)); }
+  .wrap{ grid-template-columns:repeat(3,minmax(220px,1fr)); }
+}
+label{font-size:12px; color:var(--muted); display:block; margin-bottom:6px;}
+input, select{
+  appearance:none; width:100%; border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:#fff; color:var(--text);
+  outline:none; transition:border .15s, box-shadow .15s; font-size:16px;
+}
+input:focus, select:focus{ border-color:var(--accent); box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+.small{ font-size:13px; padding:8px 10px; }
+.smallmuted{ font-size:12px; opacity:.85; }
+
+.btn{ background:var(--accent); color:#fff; border:none; border-radius:12px; padding:12px 14px; cursor:pointer; font-weight:600; font-size:15px; }
+.btn:hover{ filter:brightness(1.05); }
+.btn.secondary{ background:#f3f4f6; color:#111827; border:1px solid var(--line); }
+.btn.secondary:hover{ background:#eef2ff; }
+.btn.danger{ background:var(--danger); }
+.btn.ghost{ background:transparent; color:var(--text); border:1px dashed var(--line); }
+
+.badge { display:inline-block; padding:4px 10px; border:1px solid var(--line); border-radius:999px; background:var(--accent-weak); font-size:12px; }
+.status-new { background:#fff; }
+.status-changed { background:#fff9e6; }
+.status-done { background:#ecfdf5; }
+.inline { display:inline-flex; align-items:center; gap:8px; }
+
+.kpi{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; }
+.kpi .box{ background:#f8fafc; border:1px solid var(--line); border-radius:12px; padding:10px; }
+
+/* Desktop table */
+.table-wrap{overflow:auto;}
+table{ width:100%; border-collapse:separate; border-spacing:0; min-width:900px; }
+thead th{ position:sticky; top:0; background:#f8fafc; border-bottom:1px solid var(--line); text-align:left; padding:10px 8px; font-size:12px; color:#374151; }
+tbody td{ border-bottom:1px solid var(--line); padding:10px 8px; vertical-align:middle; }
+tbody tr:hover{ background:#f9fbff; }
+tfoot td{ background:#fafafa; border-top:1px solid var(--line); font-weight:700; }
+.right{text-align:right;}
+.cell-edit{ width:110px; text-align:right; }
+.note-input { width:220px; }
+
+/* Compact mobile cards instead of full table */
+@media (max-width:720px){
+  .table-wrap{ display:none; }
+  .list-mobile{ display:grid; gap:10px; }
+  .mrow{ border:1px solid var(--line); border-radius:12px; background:#fff; padding:10px; }
+  .mrow .row-top{ display:flex; align-items:center; gap:8px; }
+  .mrow .title{ font-weight:600; }
+  .mrow .meta{ font-size:12px; color:var(--muted); display:flex; gap:8px; flex-wrap:wrap; }
+  .mrow .sum{ margin-left:auto; font-weight:700; }
+  .mrow .tags{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+  .mrow .tag{ font-size:11px; padding:2px 6px; border:1px solid var(--line); border-radius:999px; background:#f8fafc; }
+  .mrow .actions{ display:flex; gap:6px; margin-top:8px; }
+  .mrow .details{ display:none; padding-top:8px; border-top:1px dashed var(--line); margin-top:8px; }
+  .mrow.open .details{ display:block; }
+  .btn, .btn.secondary, .btn.danger, .btn.ghost{ padding:10px 12px; font-size:14px; border-radius:10px; }
+}
+
+/* Sticky bottom bar on mobile */
+.mobile-bar{
+  position:sticky; bottom:0; z-index:15; background:rgba(255,255,255,.98); border-top:1px solid var(--line);
+  padding:10px; display:none; gap:8px;
+}
+@media (max-width:720px){
+  .mobile-bar{ display:flex; }
+  .mobile-bar .btn{ flex:1; }
+}
+</style>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2563eb">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 24 24'><rect width='24' height='24' rx='6' fill='%23fff'/><rect x='4' y='4' width='16' height='16' rx='3' fill='none' stroke='%23888' stroke-width='1.2'/><rect x='7' y='8' width='10' height='2' rx='1' fill='%232563eb'/><rect x='7' y='12' width='3' height='3' rx='0.8' fill='%232563eb'/><rect x='11' y='12' width='3' height='3' rx='0.8' fill='%232563eb'/><rect x='15' y='12' width='3' height='3' rx='0.8' fill='%232563eb'/></svg>" alt="Bek Calc Logo" />
+      <div class="name">Bek Calc</div>
+      <span class="spacer"></span>
+    </div>
+  </header>
+  <main>
+    <section class="card" id="newItem">
+      <div class="toolbar">
+        <h3 class="section-title">Новая позиция</h3>
+        <span class="spacer"></span>
+        <span class="badge" id="currentObjectBadge">Объект: —</span>
+        <span class="badge" id="statusBadge">Статус: новая</span>
+      </div>
+      <div class="grid" style="margin-top:8px">
+        <div>
+          <label>Объект/участок</label>
+          <input id="objectName" type="text" placeholder="Напр.: Блок А, 3 этаж">
+        </div>
+        <div>
+          <label>Вид работ</label>
+          <select id="workType"></select>
+        </div>
+        <div>
+          <label>Цена за 1 ед. (₸)</label>
+          <input id="unitPrice" type="number" step="0.01" inputmode="decimal" placeholder="0.00">
+        </div>
+        <div>
+          <label>Примечание</label>
+          <input id="note" type="text" placeholder="Любые детали">
+        </div>
+      </div>
+
+      <div class="wrap" id="fields" style="margin-top:12px"></div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="inline" style="flex-wrap:wrap;">
+          <label class="inline"><input type="checkbox" id="overrideToggle"> Прямой ввод объёма</label>
+          <input id="overrideQty" type="number" step="0.001" inputmode="decimal" placeholder="0.000" style="width:160px" disabled>
+          <select id="overrideUnit" disabled>
+            <option value="m2">м²</option>
+            <option value="m3">м³</option>
+            <option value="m">м</option>
+            <option value="pcs">шт</option>
+          </select>
+          <span class="smallmuted">Если включено — формулы L×B×H отключаются.</span>
+        </div>
+      </div>
+
+      <div class="kpi" style="margin-top:12px">
+        <div class="box"><b>Кол-во:</b> <span id="qtyPreview">0</span> <span id="unitLabel">ед.</span></div>
+        <div class="box"><b>Сумма:</b> <span id="sumPreview">0.00</span> ₸</div>
+        <div class="box"><b>Средняя по Уральску:</b> <span id="avgCityPreview">—</span> ₸/ед.</div>
+      </div>
+
+      <div style="margin-top:12px" class="toolbar">
+        <button class="btn" id="addBtn">Добавить в ведомость</button>
+        <button class="btn secondary" id="resetBtn">Сбросить форму</button>
+        <span class="spacer"></span>
+        <span class="smallmuted">Двойной клик по «Кол-во» в списке — быстрый ввод.</span>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:16px">
+      <div class="toolbar">
+        <h3 class="section-title">Список позиций</h3>
+        <span class="spacer"></span>
+        <input id="quickSearch" class="small" type="search" placeholder="Поиск (объект, вид, примечание)" style="min-width:220px;">
+        <select id="filterObject" class="small"></select>
+        <select id="filterStatus" class="small">
+          <option value="">Все</option>
+          <option value="new">Новые</option>
+          <option value="changed">Изменённые</option>
+          <option value="done">Выполненные</option>
+        </select>
+        <label class="small" style="display:inline-flex; align-items:center; gap:6px;">
+          <input type="checkbox" id="hideDone"> Скрыть выполненные
+        </label>
+        <button class="btn" id="exportXlsBtn" title="Скачать Excel (.xls)">Экспорт Excel</button>
+        <button class="btn secondary" id="bulkDoneBtn">Отметить как выполненные</button>
+        <button class="btn ghost" id="bulkNewBtn">Вернуть в «новые»</button>
+        <button class="btn danger" id="clearBtn">Очистить всё</button>
+      </div>
+
+      <!-- Desktop table -->
+      <div class="table-wrap" style="margin-top:12px">
+        <table id="rowsTable">
+          <thead>
+            <tr>
+              <th>Дата/время</th>
+              <th>Объект</th>
+              <th>Вид работ</th>
+              <th>Ед. изм.</th>
+              <th class="right">Кол-во</th>
+              <th class="right">Цена (₸/ед.)</th>
+              <th class="right">Средняя (₸/ед.)</th>
+              <th class="right">Сумма (₸)</th>
+              <th>Статус</th>
+              <th>L</th><th>B</th><th>H</th><th>T</th><th>D</th><th>Проёмы</th><th>Шт</th>
+              <th>Примечание</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+          <tfoot>
+            <tr>
+              <td colspan="7" class="right">ИТОГО (фильтр):</td>
+              <td class="right" id="grandTotal">0.00</td>
+              <td colspan="8"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <!-- Mobile cards list -->
+      <div id="listMobile" class="list-mobile" style="display:none;"></div>
+    </section>
+
+    <section class="card" style="margin-top:16px">
+      <div class="toolbar">
+        <h3 class="section-title">Сводка по объектам</h3>
+      </div>
+      <div style="overflow:auto; margin-top:8px">
+        <table id="objectSummary" class="table-min">
+          <thead><tr><th>Объект</th><th class="right">Позиции</th><th class="right">Итого (₸)</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Mobile sticky bar -->
+  <div class="mobile-bar">
+    <button class="btn" id="mobileScrollAdd">Добавить</button>
+    <button class="btn secondary" id="mobileExport">Excel</button>
+    <button class="btn ghost" id="mobileToTop">Наверх</button>
+  </div>
+
+<script>
+// ===== Утилиты/константы =====
+const Unit = { m3:'м³', m2:'м²', m:'м', pcs:'шт' };
+const STATUS = { NEW:'new', CHANGED:'changed', DONE:'done' };
+const $ = (id)=>document.getElementById(id);
+function unitText(u, manualText){ return u==='m2'?'м²':u==='m3'?'м³':u==='m'?'м':u==='pcs'?'шт':(manualText||'ед.'); }
+function esc(s){ return (s??'').toString().replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function num(v, d){ v=v||0; return v? v.toFixed(d):''; }
+function nn(v){ if (isNaN(v)) return 0; return v<0?0:v; }
+function deepClone(o){ return JSON.parse(JSON.stringify(o)); }
+const LS_ROWS='bek_rows_v4', LS_AVG='bek_rows_v4_avg';
+
+let AVG_PRICE = {
+  'dem_wall': 3000, 'putty_wall': 900, 'paint_apply': 800, 'plaster_wall': 2000,
+  'window_install': 12000, 'window_dismantle': 6000, 'door_install': 10000, 'door_dismantle': 5000,
+  'plumb_install': 15000, 'elec_install': 12000, 'gkl_wall': 2500, 'screed': 2500,
+  'floor_laminate': 1500, 'floor_linoleum': 1000,
+  'gkl_ceiling': 2600, 'gkl_partition': 2600, 'floor_selflevel': 3000, 'floor_carpet': 1400,
+  'floor_pvc': 2200, 'ceiling_armstrong': 2800, 'tile_floor': 3500, 'tile_wall': 3800,
+  'hydro': 1200, 'roof_sheet': 2500, 'interior_misc': 1000, 'plumb_point_install': 15000,
+  'plumb_point_dismantle': 8000, 'elec_point_install': 12000, 'elec_point_dismantle': 6000,
+  'pipe_laying': 900, 'cable_laying': 700, 'dem_concrete': 0, 'beton_slab': 0, 'beton_strip': 0,
+  'beton_beam': 0, 'beton_col_rect': 0, 'beton_col_cyl': 0, 'earth_trench': 0, 'earth_backfill': 0,
+};
+
+const CATALOG=[
+  {id:'beton_slab', name:'Бетон — плита/перекрытие (м³)', unit:'m3', fields:['length','width','thickness','count']},
+  {id:'beton_strip', name:'Бетон — лента фундамента (м³)', unit:'m3', fields:['length','width','height','count']},
+  {id:'beton_beam', name:'Бетон — балка (м³)', unit:'m3', fields:['length','width','height','count']},
+  {id:'beton_col_rect', name:'Бетон — колонна прямоуг. (м³)', unit:'m3', fields:['width','thickness','height','count']},
+  {id:'beton_col_cyl', name:'Бетон — колонна цилиндр. (м³)', unit:'m3', fields:['diameter','height','count']},
+  {id:'earth_trench', name:'Земляные — траншея (м³)', unit:'m3', fields:['length','width','height','count']},
+  {id:'earth_backfill', name:'Земляные — обратная засыпка (м³)', unit:'m3', fields:['length','width','height','count']},
+  {id:'masonry', name:'Кладка (м³)', unit:'m3', fields:['length','height','thickness','count']},
+  {id:'plaster_wall', name:'Штукатурка стен (м²)', unit:'m2', fields:['length','height','openings','count']},
+  {id:'putty_wall', name:'Шпаклёвка стен (м²)', unit:'m2', fields:['length','height','openings','count']},
+  {id:'paint_apply', name:'Окраска стен (м²)', unit:'m2', fields:['length','height','openings','count']},
+  {id:'paint_remove', name:'Демонтаж (снятие) краски (м²)', unit:'m2', fields:['length','height','openings','count']},
+  {id:'tile_floor', name:'Плитка — пол (м²)', unit:'m2', fields:['length','width','count']},
+  {id:'tile_wall', name:'Плитка — стены (м²)', unit:'m2', fields:['length','height','openings','count']},
+  {id:'gkl_wall', name:'ГКЛ — стены (м²)', unit:'m2', fields:['length','height','count']},
+  {id:'screed', name:'Стяжка пола (м²)', unit:'m2', fields:['length','width','count']},
+  {id:'hydro', name:'Гидроизоляция (м²)', unit:'m2', fields:['length','width','count']},
+  {id:'roof_sheet', name:'Кровля профлист (м²)', unit:'m2', fields:['length','width','count']},
+  {id:'interior_misc', name:'Внутренние работы (м²)', unit:'m2', fields:['length','width','count']},
+  {id:'gkl_ceiling', name:'ГКЛ — потолок (м²)', unit:'m2', fields:['length','width','count']},
+  {id:'gkl_partition', name:'ГКЛ — перегородки (м²)', unit:'m2', fields:['length','height','count']},
+  {id:'floor_laminate', name:'Покрытие пола — ламинат (м²)', unit:'m2', fields:['length','width','count']},
+  {id:'floor_linoleum', name:'Покрытие пола — линолеум (м²)', unit:'m2', fields:['length','width','count']},
+  {id:'floor_selflevel', name:'Наливной пол (м²)', unit:'m2', fields:['length','width','count']},
+  {id:'floor_carpet', name:'Ковролин (м²)', unit:'m2', fields:['length','width','count']},
+  {id:'floor_pvc', name:'ПВХ-плитка / кварцвинил (м²)', unit:'m2', fields:['length','width','count']},
+  {id:'ceiling_armstrong', name:'Потолок Армстронг (м²)', unit:'m2', fields:['length','width','count']},
+  {id:'door_install', name:'Монтаж двери (шт)', unit:'pcs', fields:['count']},
+  {id:'door_dismantle', name:'Демонтаж двери (шт)', unit:'pcs', fields:['count']},
+  {id:'window_install', name:'Монтаж окна (шт)', unit:'pcs', fields:['count']},
+  {id:'window_dismantle', name:'Демонтаж окна (шт)', unit:'pcs', fields:['count']},
+  {id:'plumb_install', name:'Сантехника — монтаж (шт)', unit:'pcs', fields:['count']},
+  {id:'plumb_dismantle', name:'Сантехника — демонтаж (шт)', unit:'pcs', fields:['count']},
+  {id:'elec_install', name:'Электрика — монтаж (шт)', unit:'pcs', fields:['count']},
+  {id:'elec_dismantle', name:'Электрика — демонтаж (шт)', unit:'pcs', fields:['count']},
+  {id:'plumb_point_install', name:'Сантехническая точка — монтаж (шт)', unit:'pcs', fields:['count']},
+  {id:'plumb_point_dismantle', name:'Сантехническая точка — демонтаж (шт)', unit:'pcs', fields:['count']},
+  {id:'elec_point_install', name:'Электроточка — монтаж (шт)', unit:'pcs', fields:['count']},
+  {id:'elec_point_dismantle', name:'Электроточка — демонтаж (шт)', unit:'pcs', fields:['count']},
+  {id:'pipe_laying', name:'Прокладка труб (п.м.)', unit:'m', fields:['length','count']},
+  {id:'cable_laying', name:'Прокладка кабеля (п.м.)', unit:'m', fields:['length','count']},
+  {id:'dem_concrete', name:'Демонтаж бетона (м³)', unit:'m3', fields:['length','width','height','count']},
+  {id:'dem_wall', name:'Демонтаж стен/перегородок (м²)', unit:'m2', fields:['length','height','openings','count']},
+  {id:'custom', name:'Произвольная позиция', unit:'m2', fields:['manualQty','manualUnit','count']},
+];
+
+const state = { rows: [] };
+const undoStack = [];
+
+// ===== Формулы =====
+function qtyByFormula(it){
+  const L=it.length||0,B=it.width||0,H=it.height||0,T=it.thickness||0,D=it.diameter||0,O=it.openings||0,C=it.count||1;
+  const pi=Math.PI;
+  switch(it.workTypeId){
+    case 'beton_slab': return nn(L*B*T)*C;
+    case 'beton_strip':
+    case 'beton_beam':
+    case 'earth_trench':
+    case 'earth_backfill': return nn(L*B*H)*C;
+    case 'beton_col_rect': return nn(it.width*it.thickness*it.height)*C;
+    case 'beton_col_cyl': return nn(pi*Math.pow(D/2,2)*H)*C;
+    case 'masonry': return nn(L*H*T)*C;
+    case 'plaster_wall':
+    case 'putty_wall':
+    case 'paint_apply':
+    case 'paint_remove':
+    case 'tile_wall':
+    case 'gkl_wall':
+    case 'dem_wall': return nn(L*H - O)*C;
+    case 'screed':
+    case 'hydro':
+    case 'tile_floor':
+    case 'roof_sheet':
+    case 'interior_misc':
+    case 'gkl_ceiling':
+    case 'gkl_partition': return (it.workTypeId==='gkl_partition')? nn(L*H)*C : nn(L*B)*C;
+    case 'floor_laminate':
+    case 'floor_linoleum':
+    case 'floor_selflevel':
+    case 'floor_carpet':
+    case 'floor_pvc':
+    case 'ceiling_armstrong': return nn(L*B)*C;
+    case 'door_install':
+    case 'door_dismantle':
+    case 'window_install':
+    case 'window_dismantle':
+    case 'plumb_install':
+    case 'plumb_dismantle':
+    case 'elec_install':
+    case 'elec_dismantle':
+    case 'plumb_point_install':
+    case 'plumb_point_dismantle':
+    case 'elec_point_install':
+    case 'elec_point_dismantle': return nn(C);
+    case 'pipe_laying':
+    case 'cable_laying': return nn(L)*C;
+    case 'dem_concrete': return nn(L*B*H)*C;
+    case 'custom': return nn(it.manualQty||0)*C;
+    default: return 0;
+  }
+}
+
+// ===== DOM refs =====
+const workTypeSel=$('workType'), fieldsWrap=$('fields'), unitLbl=$('unitLabel'), qtyPreview=$('qtyPreview'), sumPreview=$('sumPreview'), avgCityPrev=$('avgCityPreview');
+const overrideToggle=$('overrideToggle'), overrideQty=$('overrideQty'), overrideUnit=$('overrideUnit');
+const filterObject=$('filterObject'), filterStatus=$('filterStatus'), hideDone=$('hideDone'), quickSearch=$('quickSearch');
+const statusBadge=$('statusBadge'), currentObjectBadge=$('currentObjectBadge');
+const listMobile=$('listMobile');
+
+function populateWorkTypes(){ workTypeSel.innerHTML = CATALOG.map(t=>`<option value="${t.id}">${t.name}</option>`).join(''); }
+
+function inputField(key,label,placeholder='',step='0.001'){
+  const id='f_'+key;
+  return `<div>
+    <label>${label}</label>
+    <input id="${id}" type="${key==='manualUnit'?'text':'number'}" ${key==='manualUnit'?'':`step="${step}"`} inputmode="${key==='manualUnit'?'text':'decimal'}" placeholder="${placeholder}">
+  </div>`;
+}
+
+function renderFields(){
+  const type=CATALOG.find(t=>t.id===workTypeSel.value);
+  const defs={
+    length: inputField('length','Длина L (м)','0.000'),
+    width: inputField('width','Ширина B (м)','0.000'),
+    height: inputField('height','Высота H (м)','0.000'),
+    thickness: inputField('thickness','Толщина T (м)','0.000'),
+    diameter: inputField('diameter','Диаметр D (м)','0.000'),
+    openings: inputField('openings','Проёмы (м²)','0.00','0.01'),
+    count: inputField('count','Кол-во одинаковых (шт)','1','1'),
+    manualQty: inputField('manualQty','Кол-во (ед.)','0.000'),
+    manualUnit: inputField('manualUnit','Ед. изм. (текст)','м²'),
+  };
+  const out=[];
+  (type.fields||[]).forEach(f=>out.push(defs[f]));
+  if (!type.fields?.includes('count')) out.push(defs['count']);
+  fieldsWrap.innerHTML=out.join('');
+  const g=(id)=>document.getElementById(id);
+  if (g('f_thickness')) g('f_thickness').value=0.12;
+  if (g('f_openings')) g('f_openings').value=0;
+  if (g('f_count')) g('f_count').value=1;
+  fieldsWrap.querySelectorAll('input').forEach(i=>i.addEventListener('input',()=>{ markChanged(); recalcPreview(); }));
+  recalcPreview();
+}
+
+function collect(){
+  const type=CATALOG.find(t=>t.id===workTypeSel.value);
+  const it={
+    createdAt:new Date().toISOString(),
+    objectName:document.getElementById('objectName').value.trim(),
+    workTypeId:type.id, workTypeName:type.name,
+    unit:type.unit,
+    length:parseFloat((document.getElementById('f_length')?.value||'').replace(',','.'))||0,
+    width:parseFloat((document.getElementById('f_width')?.value||'').replace(',','.'))||0,
+    height:parseFloat((document.getElementById('f_height')?.value||'').replace(',','.'))||0,
+    thickness:parseFloat((document.getElementById('f_thickness')?.value||'').replace(',','.'))||0,
+    diameter:parseFloat((document.getElementById('f_diameter')?.value||'').replace(',','.'))||0,
+    openings:parseFloat((document.getElementById('f_openings')?.value||'').replace(',','.'))||0,
+    count:Math.max(1, parseInt((document.getElementById('f_count')?.value||'1'))||1),
+    manualQty:parseFloat((document.getElementById('f_manualQty')?.value||'').replace(',','.'))||0,
+    manualUnitText: document.getElementById('f_manualUnit')?.value || '',
+    unitPrice:parseFloat((document.getElementById('unitPrice').value||'').replace(',','.'))||0,
+    avgCityPrice: AVG_PRICE[type.id]||0,
+    note:document.getElementById('note').value.trim(),
+    status: statusBadge.textContent.includes('измен') ? 'changed' : 'new',
+    overrideOn: overrideToggle.checked,
+    overrideQty: parseFloat((overrideQty.value||'').replace(',','.'))||0,
+    overrideUnit: overrideUnit.value
+  };
+  if (it.overrideOn){ it.qty = nn(it.overrideQty); it.displayUnit = it.overrideUnit; }
+  else { it.qty = qtyByFormula(it); it.displayUnit = it.unit; }
+  it.lineTotal = it.qty * it.unitPrice;
+  return it;
+}
+
+function recalcPreview(){
+  const it=collect();
+  $('qtyPreview').textContent = it.qty.toFixed(3);
+  $('unitLabel').textContent = unitText(it.displayUnit, it.manualUnitText);
+  $('sumPreview').textContent = it.lineTotal.toFixed(2);
+  $('avgCityPreview').textContent = it.avgCityPrice? it.avgCityPrice.toFixed(0): '—';
+  $('currentObjectBadge').textContent = 'Объект: ' + (it.objectName||'—');
+}
+
+function markChanged(){
+  $('statusBadge').textContent='Статус: изменена';
+}
+
+// ===== Storage / Undo =====
+function saveLS(){ localStorage.setItem(LS_ROWS, JSON.stringify(state.rows)); localStorage.setItem(LS_AVG, JSON.stringify(AVG_PRICE)); }
+function loadLS(){
+  try{ state.rows = JSON.parse(localStorage.getItem(LS_ROWS)||'[]'); }catch(e){ state.rows=[]; }
+  try{ const a=JSON.parse(localStorage.getItem(LS_AVG)||'{}'); AVG_PRICE=Object.assign({},AVG_PRICE,a); }catch(e){}
+}
+function pushUndo(){ undoStack.push(deepClone(state.rows)); if (undoStack.length>10) undoStack.shift(); }
+function undo(){ if (!undoStack.length) return; state.rows = undoStack.pop(); saveLS(); renderRows(); renderObjectSummary(); updateFilterObjects(); }
+
+function addRow(){
+  const it=collect();
+  pushUndo();
+  state.rows.unshift(it);
+  saveLS(); renderRows(); renderObjectSummary(); updateFilterObjects();
+  $('note').value='';
+  $('statusBadge').textContent='Статус: новая';
+}
+
+// ===== Фильтрация/поиск =====
+function textMatch(it, q){
+  if (!q) return true;
+  q = q.toLowerCase();
+  return (it.objectName||'').toLowerCase().includes(q) ||
+         (it.workTypeName||'').toLowerCase().includes(q) ||
+         (it.note||'').toLowerCase().includes(q);
+}
+function visibleRows(){
+  const fObj=filterObject.value||''; const fStatus=filterStatus.value||''; const hide=hideDone.checked; const q=quickSearch.value.trim();
+  return state.rows.filter(r => (!fObj || r.objectName===fObj) && (!fStatus || r.status===fStatus) && (!hide || r.status!=='done') && textMatch(r,q));
+}
+
+// ===== Desktop table render =====
+function renderTable(tbody, rows){
+  let grand=0;
+  tbody.innerHTML='';
+  rows.forEach((it,i)=>{
+    grand += it.lineTotal||0;
+    const tr=document.createElement('tr');
+    tr.innerHTML = `
+      <td class="small">${new Date(it.createdAt).toLocaleString('ru-RU')}</td>
+      <td>${esc(it.objectName)}</td>
+      <td>${esc(it.workTypeName)}</td>
+      <td>${unitText(it.displayUnit, it.manualUnitText)}</td>
+      <td class="right"><span class="qty-cell" data-idx="${i}" title="Двойной клик: ручной объём">${(it.qty||0).toFixed(3)}</span></td>
+      <td class="right"><input type="number" class="cell-edit" step="0.01" value="${(it.unitPrice||0).toFixed(2)}" data-price="${i}"></td>
+      <td class="right"><input type="number" step="1" value="${(it.avgCityPrice||0).toFixed(0)}" data-avg="${i}" style="width:110px; text-align:right;"></td>
+      <td class="right">${(it.lineTotal||0).toFixed(2)}</td>
+      <td>
+        <select data-status="${i}">
+          <option value="new" ${it.status==='new'?'selected':''}>Новая</option>
+          <option value="changed" ${it.status==='changed'?'selected':''}>Изменена</option>
+          <option value="done" ${it.status==='done'?'selected':''}>Выполнена</option>
+        </select>
+      </td>
+      <td>${num(it.length,3)}</td><td>${num(it.width,3)}</td><td>${num(it.height,3)}</td>
+      <td>${num(it.thickness,3)}</td><td>${num(it.diameter,3)}</td><td>${num(it.openings,2)}</td>
+      <td>${it.count||0}</td>
+      <td><input type="text" class="note-input" value="${esc(it.note)}" data-note="${i}"></td>
+      <td><button class="btn danger" style="padding:6px 10px" data-del="${it.createdAt}">Удалить</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+  $('grandTotal').textContent = grand.toFixed(2);
+
+  const tbodyEl=tbody;
+
+  // qty quick edit
+  tbodyEl.querySelectorAll('.qty-cell').forEach(span=>{
+    span.addEventListener('dblclick',()=>{
+      const i=parseInt(span.getAttribute('data-idx')); const list=visibleRows(); const it=list[i]; if(!it) return;
+      const val=prompt('Введите новый объём (число):', (it.qty||0).toFixed(3));
+      if (val===null) return;
+      const qty=parseFloat((val||'').replace(',','.'));
+      if (isNaN(qty)) return alert('Неверное число');
+      const idx=state.rows.indexOf(it); if(idx<0) return;
+      pushUndo();
+      state.rows[idx].overrideOn = true; state.rows[idx].overrideQty = qty;
+      if (!state.rows[idx].displayUnit) state.rows[idx].displayUnit = state.rows[idx].unit;
+      state.rows[idx].qty = qty; state.rows[idx].lineTotal = qty * (state.rows[idx].unitPrice||0);
+      saveLS(); renderRows(); renderObjectSummary();
+    });
+  });
+  // inline price
+  tbodyEl.querySelectorAll('input[data-price]').forEach((inp,i)=>{
+    inp.addEventListener('input',()=>{
+      const list=visibleRows(); const it=list[i]; if(!it) return; const idx=state.rows.indexOf(it); if(idx<0) return;
+      const price=parseFloat((inp.value||'').replace(',','.'))||0;
+      state.rows[idx].unitPrice = price; state.rows[idx].lineTotal = (state.rows[idx].qty||0) * price;
+      saveLS(); inp.closest('tr').querySelectorAll('td')[7].textContent = (state.rows[idx].lineTotal||0).toFixed(2);
+      renderObjectSummary();
+    });
+  });
+  // inline avg
+  tbodyEl.querySelectorAll('input[data-avg]').forEach((inp,i)=>{
+    inp.addEventListener('input',()=>{
+      const list=visibleRows(); const it=list[i]; if(!it) return; const idx=state.rows.indexOf(it); if(idx<0) return;
+      state.rows[idx].avgCityPrice = parseFloat((inp.value||'').replace(',','.'))||0; saveLS();
+    });
+  });
+  // inline note
+  tbodyEl.querySelectorAll('input[data-note]').forEach((inp,i)=>{
+    inp.addEventListener('input',()=>{
+      const list=visibleRows(); const it=list[i]; if(!it) return; const idx=state.rows.indexOf(it); if(idx<0) return;
+      state.rows[idx].note = inp.value; saveLS();
+    });
+  });
+  // status change
+  tbodyEl.querySelectorAll('select[data-status]').forEach((sel,i)=>{
+    sel.addEventListener('change',()=>{
+      const list=visibleRows(); const it=list[i]; if(!it) return; const idx=state.rows.indexOf(it); if(idx<0) return;
+      state.rows[idx].status = sel.value; saveLS(); renderRows(); renderObjectSummary();
+    });
+  });
+  // delete
+  tbodyEl.querySelectorAll('button[data-del]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const id=btn.getAttribute('data-del'); const idx=state.rows.findIndex(r=>r.createdAt===id);
+      if(idx>=0){ pushUndo(); state.rows.splice(idx,1); saveLS(); renderRows(); renderObjectSummary(); updateFilterObjects(); }
+    });
+  });
+}
+
+// ===== Mobile card render =====
+function renderMobile(container, rows){
+  container.innerHTML='';
+  rows.forEach((it,i)=>{
+    const card=document.createElement('div'); card.className='mrow';
+    card.innerHTML = `
+      <div class="row-top">
+        <div class="title">${esc(it.workTypeName)}</div>
+        <div class="sum">${(it.lineTotal||0).toFixed(0)} ₸</div>
+      </div>
+      <div class="meta">
+        <span>${esc(it.objectName||'(без объекта)')}</span>
+        <span>${new Date(it.createdAt).toLocaleDateString('ru-RU')}</span>
+        <span>${(it.qty||0).toFixed(2)} ${unitText(it.displayUnit, it.manualUnitText)}</span>
+        <span>${(it.unitPrice||0).toFixed(0)} ₸/ед.</span>
+        <span>${({'new':'Новая','changed':'Изменена','done':'Выполнена'}[it.status]||'')}</span>
+      </div>
+      <div class="tags">
+        <span class="tag">L ${num(it.length,2)}</span>
+        <span class="tag">B ${num(it.width,2)}</span>
+        <span class="tag">H ${num(it.height,2)}</span>
+        <span class="tag">T ${num(it.thickness,2)}</span>
+        <span class="tag">D ${num(it.diameter,2)}</span>
+        <span class="tag">Проёмы ${num(it.openings,2)}</span>
+        <span class="tag">Шт ${it.count||0}</span>
+      </div>
+      <div class="actions">
+        <select data-status="${i}" style="flex:1;">
+          <option value="new" ${it.status==='new'?'selected':''}>Новая</option>
+          <option value="changed" ${it.status==='changed'?'selected':''}>Изменена</option>
+          <option value="done" ${it.status==='done'?'selected':''}>Выполнена</option>
+        </select>
+        <button class="btn" data-qty="${i}">Кол-во</button>
+        <button class="btn secondary" data-price="${i}">Цена</button>
+        <button class="btn danger" data-del="${it.createdAt}">Удалить</button>
+      </div>
+      <div class="details">
+        <label>Примечание</label>
+        <input type="text" value="${esc(it.note||'')}" data-note="${i}">
+      </div>
+      <button class="btn ghost toggle" style="margin-top:8px;">Подробнее</button>
+    `;
+    container.appendChild(card);
+  });
+
+  // Handlers
+  container.querySelectorAll('button.toggle').forEach(btn=>{
+    btn.addEventListener('click',()=>{ btn.parentElement.classList.toggle('open'); });
+  });
+  container.querySelectorAll('select[data-status]').forEach((sel,i)=>{
+    sel.addEventListener('change',()=>{
+      const list=visibleRows(); const it=list[i]; if(!it) return;
+      const idx=state.rows.indexOf(it); if(idx<0) return;
+      state.rows[idx].status = sel.value; saveLS(); renderRows(); renderObjectSummary();
+    });
+  });
+  container.querySelectorAll('button[data-qty]').forEach((btn,i)=>{
+    btn.addEventListener('click',()=>{
+      const list=visibleRows(); const it=list[i]; if(!it) return;
+      const val=prompt('Введите новый объём (число):', (it.qty||0).toFixed(3));
+      if (val===null) return;
+      const qty=parseFloat((val||'').replace(',','.')); if (isNaN(qty)) return alert('Неверное число');
+      const idx=state.rows.indexOf(it); if(idx<0) return;
+      pushUndo(); state.rows[idx].overrideOn=true; state.rows[idx].overrideQty=qty; state.rows[idx].qty=qty; state.rows[idx].lineTotal=qty*(state.rows[idx].unitPrice||0);
+      saveLS(); renderRows(); renderObjectSummary();
+    });
+  });
+  container.querySelectorAll('button[data-price]').forEach((btn,i)=>{
+    btn.addEventListener('click',()=>{
+      const list=visibleRows(); const it=list[i]; if(!it) return;
+      const val=prompt('Новая цена (₸/ед.):', (it.unitPrice||0).toFixed(2));
+      if (val===null) return;
+      const p=parseFloat((val||'').replace(',','.')); if (isNaN(p)) return alert('Неверное число');
+      const idx=state.rows.indexOf(it); if(idx<0) return;
+      pushUndo(); state.rows[idx].unitPrice=p; state.rows[idx].lineTotal=(state.rows[idx].qty||0)*p;
+      saveLS(); renderRows(); renderObjectSummary();
+    });
+  });
+  container.querySelectorAll('button[data-del]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const id=btn.getAttribute('data-del'); const idx=state.rows.findIndex(r=>r.createdAt===id);
+      if(idx>=0){ pushUndo(); state.rows.splice(idx,1); saveLS(); renderRows(); renderObjectSummary(); updateFilterObjects(); }
+    });
+  });
+  container.querySelectorAll('input[data-note]').forEach((inp,i)=>{
+    inp.addEventListener('input',()=>{
+      const list=visibleRows(); const it=list[i]; if(!it) return;
+      const idx=state.rows.indexOf(it); if(idx<0) return;
+      state.rows[idx].note=inp.value; saveLS();
+    });
+  });
+}
+
+// ===== Render switcher =====
+function renderRows(){
+  const rows=visibleRows();
+  // desktop
+  const tbody=document.querySelector('#rowsTable tbody');
+  renderTable(tbody, rows);
+  // mobile
+  renderMobile(listMobile, rows);
+  // toggle lists depending on media via CSS (table hidden on mobile)
+}
+
+// ===== Excel export =====
+function xmlCell(value, type){
+  const t = type || (typeof value==='number' ? 'Number' : 'String');
+  const v = (value===null||value===undefined)? '' : String(value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return `<Cell><Data ss:Type="${t}">${v}</Data></Cell>`;
+}
+function exportExcel(){
+  const headers=['Дата/время','Объект','Вид работ','Ед. изм.','Кол-во','Цена','Средняя (Уральск)','Сумма','Статус','L','B','H','T','D','Проёмы','Шт','Примечание'];
+  const list=visibleRows();
+  let rowsXml='';
+  rowsXml += '<Row>' + headers.map(h=>`<Cell ss:StyleID="sHdr"><Data ss:Type="String">${h}</Data></Cell>`).join('') + '</Row>';
+  list.forEach(it=>{
+    rowsXml += '<Row>' +
+      xmlCell(new Date(it.createdAt).toLocaleString('ru-RU')) +
+      xmlCell(it.objectName||'') +
+      xmlCell(it.workTypeName||'') +
+      xmlCell(unitText(it.displayUnit, it.manualUnitText)) +
+      xmlCell(Number((it.qty||0).toFixed(3)), 'Number') +
+      xmlCell(Number((it.unitPrice||0).toFixed(2)), 'Number') +
+      xmlCell(Number((it.avgCityPrice||0).toFixed(0)), 'Number') +
+      xmlCell(Number((it.lineTotal||0).toFixed(2)), 'Number') +
+      xmlCell({'new':'Новая','changed':'Изменена','done':'Выполнена'}[it.status]||'') +
+      xmlCell(Number((it.length||0).toFixed(3)), 'Number') +
+      xmlCell(Number((it.width||0).toFixed(3)), 'Number') +
+      xmlCell(Number((it.height||0).toFixed(3)), 'Number') +
+      xmlCell(Number((it.thickness||0).toFixed(3)), 'Number') +
+      xmlCell(Number((it.diameter||0).toFixed(3)), 'Number') +
+      xmlCell(Number((it.openings||0).toFixed(2)), 'Number') +
+      xmlCell(it.count||0, 'Number') +
+      xmlCell(it.note||'') +
+    '</Row>';
+  });
+  const grand = list.reduce((s,it)=>s+(it.lineTotal||0),0);
+  rowsXml += '<Row></Row><Row>' + xmlCell('ИТОГО') + xmlCell('')+xmlCell('')+xmlCell('')+xmlCell('')+xmlCell('')+xmlCell('') + xmlCell(Number(grand.toFixed(2)),'Number') + '</Row>';
+  const workbook =
+    `<?xml version="1.0"?>
+    <?mso-application progid="Excel.Sheet"?>
+    <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+      xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:x="urn:schemas-microsoft-com:office:excel"
+      xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+      xmlns:html="http://www.w3.org/TR/REC-html40">
+      <Styles>
+        <Style ss:ID="Default" ss:Name="Normal">
+          <Alignment ss:Vertical="Center"/>
+          <Font ss:FontName="Inter" ss:Size="10"/>
+        </Style>
+        <Style ss:ID="sHdr">
+          <Font ss:Bold="1"/>
+          <Interior ss:Color="#EAF1FF" ss:Pattern="Solid"/>
+        </Style>
+      </Styles>
+      <Worksheet ss:Name="BekCalc">
+        <Table>${rowsXml}</Table>
+      </Worksheet>
+    </Workbook>`;
+  const blob = new Blob([workbook], {type:'application/vnd.ms-excel'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'bekcalc_export.xls';
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// ===== Массовые действия/сводка =====
+function bulkSetStatus(newStatus){
+  const list=visibleRows(); if(!list.length) return;
+  pushUndo();
+  list.forEach(it=>{ const idx=state.rows.indexOf(it); if(idx>=0) state.rows[idx].status=newStatus; });
+  saveLS(); renderRows(); renderObjectSummary();
+}
+function renderObjectSummary(){
+  const map={};
+  state.rows.forEach(it=>{
+    const key=it.objectName?.trim()||'(без объекта)';
+    if(!map[key]) map[key]={sum:0,count:0}; map[key].sum += it.lineTotal||0; map[key].count += 1;
+  });
+  const tbody=document.querySelector('#objectSummary tbody'); tbody.innerHTML='';
+  Object.keys(map).sort().forEach(name=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${esc(name)}</td><td class="right">${map[name].count}</td><td class="right">${map[name].sum.toFixed(2)}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+function updateFilterObjects(){
+  const objs=new Set(state.rows.map(r=>r.objectName?.trim()).filter(Boolean));
+  const val=filterObject.value;
+  filterObject.innerHTML = `<option value="">Все объекты</option>` + Array.from(objs).sort().map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join('');
+  if(val && Array.from(objs).includes(val)) filterObject.value=val;
+}
+
+// ===== Init =====
+function saveLS(){ localStorage.setItem(LS_ROWS, JSON.stringify(state.rows)); localStorage.setItem(LS_AVG, JSON.stringify(AVG_PRICE)); }
+function loadLS(){
+  try{ state.rows = JSON.parse(localStorage.getItem(LS_ROWS)||'[]'); }catch(e){ state.rows=[]; }
+  try{ const a=JSON.parse(localStorage.getItem(LS_AVG)||'{}'); AVG_PRICE=Object.assign({},AVG_PRICE,a); }catch(e){}
+}
+function pushUndo(){ undoStack.push(deepClone(state.rows)); if (undoStack.length>10) undoStack.shift(); }
+
+function init(){
+  loadLS(); populateWorkTypes(); renderFields(); renderRows(); renderObjectSummary(); updateFilterObjects();
+
+  ['objectName','unitPrice','note'].forEach(id=>$(id).addEventListener('input',()=>{ markChanged(); recalcPreview(); }));
+  workTypeSel.addEventListener('change',()=>{ renderFields(); });
+  $('addBtn').addEventListener('click', addRow);
+  $('resetBtn').addEventListener('click', ()=>{
+    document.querySelectorAll('#newItem input').forEach(i=>i.value='');
+    $('statusBadge').textContent='Статус: новая';
+    overrideToggle.checked=false; overrideQty.disabled=true; overrideUnit.disabled=true; overrideQty.value='';
+    recalcPreview();
+  });
+  $('exportXlsBtn').addEventListener('click', exportExcel);
+  $('clearBtn').addEventListener('click', ()=>{ if(confirm('Удалить все позиции?')){ pushUndo(); state.rows=[]; saveLS(); renderRows(); renderObjectSummary(); updateFilterObjects(); } });
+  $('bulkDoneBtn').addEventListener('click', ()=>bulkSetStatus('done'));
+  $('bulkNewBtn').addEventListener('click', ()=>bulkSetStatus('new'));
+  filterObject.addEventListener('change', renderRows);
+  filterStatus.addEventListener('change', renderRows);
+  hideDone.addEventListener('change', renderRows);
+  quickSearch.addEventListener('input', renderRows);
+  overrideToggle.addEventListener('change',()=>{
+    const on=overrideToggle.checked;
+    overrideQty.disabled = !on; overrideUnit.disabled = !on;
+    markChanged(); recalcPreview();
+  });
+  overrideQty.addEventListener('input', ()=>{ markChanged(); recalcPreview(); });
+  overrideUnit.addEventListener('change', ()=>{ markChanged(); recalcPreview(); });
+
+  // Mobile sticky bar actions
+  $('mobileExport').addEventListener('click', exportExcel);
+  $('mobileScrollAdd').addEventListener('click', ()=>{ document.getElementById('newItem').scrollIntoView({behavior:'smooth'}); });
+  $('mobileToTop').addEventListener('click', ()=>{ window.scrollTo({top:0, behavior:'smooth'}); });
+}
+init();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('./service-worker.js').then(function(reg) {
+      console.log('ServiceWorker registered', reg.scope);
+    }).catch(function(err) {
+      console.log('ServiceWorker registration failed:', err);
+    });
+  });
+}
+</script>
+
+</body>
+</html>
